@@ -1,0 +1,55 @@
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+
+# =====================
+# Virtual environment
+# =====================
+venv/
+env/
+ENV/
+.venv/
+
+# =====================
+# Django
+# =====================
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+/staticfiles/
+media/
+*.pot
+*.mo
+
+# Django migrations (faqat __init__.py qoladi)
+*/migrations/
+!*/migrations/__init__.py
+
+# =====================
+# IDEs
+# =====================
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# =====================
+# OS
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# Environment variables
+# =====================
+.env
+
+
