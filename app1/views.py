@@ -27,18 +27,6 @@ class RegisterAPIView(APIView):
         otp_code = str(random.randint(100000, 999999))
         otp = Otp.objects.create(code=otp_code)
 
-        # Email jo'natish ruxsati tekshirilmaydi, faqat try/except
-        try:
-            send_mail(
-                'Your OTP Code',
-                f'Sizning OTP kodingiz: {otp.code}',
-                'noreply@example.com',  # settings.EMAIL_HOST_USER bo'lishi mumkin
-                [temp_user.email],
-                fail_silently=True,
-            )
-        except Exception:
-            pass  # ishlamasa ham e'tibor bermaymiz
-
         # Session yoki cache-ga saqlaymiz
         request.session['temp_user_data'] = {
             **serializer.validated_data,
