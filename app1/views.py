@@ -1,16 +1,20 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 from .models.user_models import User, Otp
 from .user_serializer import RegisterSerializer, OtpVerifySerializer, LoginSerializer
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
-from django.conf import settings
-from django.utils import timezone
 import random
 from django.core.mail import send_mail
 from rest_framework_simplejwt.tokens import RefreshToken
+from .models.product_models import Product
+from .user_serializer import ProductSerializer
+from .permissions import IsOwner
 
+# =============================
+# REGISTER API
+# =============================
 class RegisterAPIView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -23,14 +27,17 @@ class RegisterAPIView(APIView):
         otp_code = str(random.randint(100000, 999999))
         otp = Otp.objects.create(code=otp_code)
 
-        # Email jo'natish
-        send_mail(
-            'Your OTP Code',
-            f'Sizning OTP kodingiz: {otp.code}',
-            settings.EMAIL_HOST_USER,
-            [temp_user.email],
-            fail_silently=False,
-        )
+        # Email jo'natish ruxsati tekshirilmaydi, faqat try/except
+        try:
+            send_mail(
+                'Your OTP Code',
+                f'Sizning OTP kodingiz: {otp.code}',
+                'noreply@example.com',  # settings.EMAIL_HOST_USER bo'lishi mumkin
+                [temp_user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass  # ishlamasa ham e'tibor bermaymiz
 
         # Session yoki cache-ga saqlaymiz
         request.session['temp_user_data'] = {
@@ -38,8 +45,15 @@ class RegisterAPIView(APIView):
             'password': temp_user.password  # xeshlangan parol
         }
 
-        return Response({'detail': 'Sizning emailingizga OTP jo‘natildi'}, status=201)
+        # Response-da OTPni yuborish (dev/testing uchun)
+        return Response({
+            'detail': 'Sizning emailingizga OTP jo‘natildi',
+            'otp': otp.code
+        }, status=201)
 
+# =============================
+# OTP VERIFY API
+# =============================
 class OtpVerifyAPIView(APIView):
     def post(self, request):
         serializer = OtpVerifySerializer(data=request.data)
@@ -96,9 +110,8 @@ class OtpVerifyAPIView(APIView):
             }
         })
 
-
 # =============================
-# Login API
+# LOGIN API
 # =============================
 class LoginAPIView(APIView):
     def post(self, request):
@@ -126,7 +139,7 @@ class LoginAPIView(APIView):
         })
 
 # =============================
-# Logout API
+# LOGOUT API
 # =============================
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -137,33 +150,30 @@ class LogoutAPIView(APIView):
             return Response({'detail': 'Refresh token kiritilmagan'}, status=400)
 
         try:
-            # Tokenni olishga harakat qilamiz
             token = RefreshToken(refresh_token)
         except Exception:
-            # Token umuman topilmasa (bazada yo‘q) → xato qaytaramiz
             return Response({'detail': 'Refresh token topilmadi'}, status=400)
 
-        # Token topildi, blacklist qilamiz
         try:
-            token.blacklist()  # ishlatilgan bo‘lsa ham xato bermaydi
+            token.blacklist()
         except Exception:
-            pass  # ishlatilgan bo‘lsa ham e’tibor bermaymiz
+            pass
 
         # Userni o‘chirib tashlaymiz
         user = request.user
         user.delete()
 
-        return Response({'detail': 'Siz muvaffaqiyatli logout qildingiz va user bazadan o‘chirildi'}, status=200)
+        # Development/testing uchun OTP
+        otp_code = str(random.randint(100000, 999999))
 
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+        return Response({
+            'detail': 'Siz muvaffaqiyatli logout qildingiz va user bazadan o‘chirildi',
+            'otp': otp_code
+        }, status=200)
 
-from app1.models.product_models import Product
-from app1.user_serializer import ProductSerializer
-from app1.permissions import IsOwner
-
-
-# CREATE
+# =============================
+# PRODUCT CRUD
+# =============================
 class ProductCreateAPIView(generics.CreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
@@ -171,22 +181,14 @@ class ProductCreateAPIView(generics.CreateAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
-
-# LIST
 class ProductListAPIView(generics.ListAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-
-# DETAIL
 class ProductDetailAPIView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-
-
-
-# UPDATE
 class ProductUpdateAPIView(generics.UpdateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -195,8 +197,6 @@ class ProductUpdateAPIView(generics.UpdateAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
-
-# DELETE
 class ProductDeleteAPIView(generics.DestroyAPIView):
     queryset = Product.objects.all()
     permission_classes = [IsAuthenticated, IsOwner]

@@ -28,7 +28,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 from rest_framework import serializers
-from app1.models.product_models import Product, ProductImage
+from .models.product_models import Product, ProductImage
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -38,7 +38,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 from rest_framework import serializers
-from app1.models.product_models import Product, ProductImage
+from .models.product_models import Product, ProductImage
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
