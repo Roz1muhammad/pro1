@@ -1,5 +1,6 @@
 asgiref==3.11.0
 Django==5.2
+django-cors-headers==4.9.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 drf-yasg==1.21.14
@@ -13,3 +14,6 @@ sqlparse==0.5.5
 tzdata==2025.3
 uritemplate==4.2.0
 gunicorn==23.0.0
+
+
+
