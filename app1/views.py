@@ -20,24 +20,30 @@ class RegisterAPIView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Faqat temp user yaratiladi (bazaga saqlanmaydi)
-        temp_user = serializer.create_temp_user(serializer.validated_data)
+        validated_data = serializer.validated_data.copy()
+        email = validated_data.pop('email').strip().lower()
+        password = validated_data.pop('password')
 
-        # OTP yaratish
+        # User yaratish
+        user = User.objects.create(
+            is_active=False,
+            email=email,
+            **validated_data
+        )
+        user.set_password(password)
+        user.save()
+
+        # OTP yaratish (faqat email bilan)
         otp_code = str(random.randint(100000, 999999))
-        otp = Otp.objects.create(code=otp_code)
+        otp = Otp.objects.create(email=email, code=otp_code)
 
-        # Session yoki cache-ga saqlaymiz
-        request.session['temp_user_data'] = {
-            **serializer.validated_data,
-            'password': temp_user.password  # xeshlangan parol
-        }
+        print(f"📤 OTP Data being sent: {{email: {email}, code: {otp_code}}}")
 
-        # Response-da OTPni yuborish (dev/testing uchun)
         return Response({
             'detail': 'Sizning emailingizga OTP jo‘natildi',
-            'otp': otp.code
+            'otp': otp_code  # faqat dev/testing
         }, status=201)
+
 
 # =============================
 # OTP VERIFY API
@@ -47,21 +53,26 @@ class OtpVerifyAPIView(APIView):
         serializer = OtpVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data['email']
+        email = serializer.validated_data['email'].strip().lower()
         code = serializer.validated_data['code']
 
-        temp_data = request.session.get('temp_user_data')
-        if not temp_data or temp_data['email'] != email:
+        # Userni olish
+        try:
+            user = User.objects.get(email__iexact=email, is_active=False)
+        except User.DoesNotExist:
             return Response({'detail': 'Bunday user mavjud emas'}, status=404)
 
+        # Oxirgi ishlatilmagan OTPni olish
         try:
-            otp = Otp.objects.filter(is_used=False).latest('created')
+            otp = Otp.objects.filter(email__iexact=email, is_used=False).latest('created')
         except Otp.DoesNotExist:
             return Response({'detail': 'Noto‘g‘ri OTP'}, status=400)
 
+        # OTP muddati tekshirish
         if otp.is_expired():
             return Response({'detail': 'OTP muddati o‘tgan'}, status=400)
 
+        # Maksimal urinishlar
         if otp.tries >= 3:
             return Response({'detail': 'Siz 3 urinishni tugatdingiz, OTP endi ishlamaydi'}, status=400)
 
@@ -71,13 +82,11 @@ class OtpVerifyAPIView(APIView):
         if otp.code != code:
             return Response({'detail': 'Noto‘g‘ri OTP'}, status=400)
 
-        # OTP to‘g‘ri → userni bazaga saqlaymiz
-        user = User(**temp_data)
+        # User faollashtirish
         user.is_active = True
         user.is_verified = True
         user.save()
 
-        otp.user = user
         otp.is_used = True
         otp.save()
 
@@ -96,7 +105,8 @@ class OtpVerifyAPIView(APIView):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }
-        })
+        }, status=200)
+
 
 # =============================
 # LOGIN API
