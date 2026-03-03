@@ -35,3 +35,62 @@ class OtpAdmin(admin.ModelAdmin):
 
     list_filter = ('is_used', 'created')
     search_fields = ('user__username', 'user__email')
+
+
+from django.contrib import admin
+from .models import Product, ProductImage
+
+
+# ==========================
+# ProductImage Inline
+# ==========================
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+    extra = 1  # nechta bo'sh rasm qo'shish joyi chiqsin
+    readonly_fields = ()
+    fields = ("image",)
+
+
+# ==========================
+# Product Admin
+# ==========================
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "name",
+        "owner",
+        "price",
+        "created_at",
+    )
+
+    list_filter = (
+        "created_at",
+    )
+
+    search_fields = (
+        "name",
+        "description",
+        "owner__username",
+    )
+
+    ordering = ("-created_at",)
+
+    inlines = [ProductImageInline]
+
+
+# ==========================
+# ProductImage Admin (alohida ham ko‘rish uchun)
+# ==========================
+@admin.register(ProductImage)
+class ProductImageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "product",
+        "image",
+    )
+
+    search_fields = (
+        "product__name",
+    )
+
